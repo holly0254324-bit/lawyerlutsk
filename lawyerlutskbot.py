@@ -95,7 +95,7 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for row in records
         if row["status"] == "free"
         and str(row["date"]) == selected_date
-        and row["type"] == consultation_type
+        and row["type"].strip().lower() == consultation_type       
     ]
 
     keyboard = [[InlineKeyboardButton(time, callback_data=f"time_{time}")]
