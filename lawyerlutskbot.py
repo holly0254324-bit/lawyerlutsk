@@ -113,6 +113,9 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = query.from_user.username or "немає username"
 
     records = sheet.get_all_records()
+   
+    for row in records:
+        print("DEBUG:", row["time"], type(row["time"]), row["date"], row["type"], row["status"])
 
     for i, row in enumerate(records, start=2):
         if (
