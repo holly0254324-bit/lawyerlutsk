@@ -112,10 +112,12 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     username = query.from_user.username or "немає username"
 
-    records = sheet.get_all_records()
-   
-    for row in records:
-        print("DEBUG:", row["time"], type(row["time"]), row["date"], row["type"], row["status"])
+        records = sheet.get_all_records()
+
+        print("SELECTED:", selected_date, consultation_type)
+
+        for row in records:
+            print("ROW:", row)
 
     for i, row in enumerate(records, start=2):
         if (
