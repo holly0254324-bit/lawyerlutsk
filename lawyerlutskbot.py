@@ -167,9 +167,9 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text("Цей слот вже зайнятий 😔")
                 return
 
-            sheet.update(f"D{i}", "booked")
-            sheet.update(f"E{i}", fullname)
-            sheet.update(f"F{i}", username)
+            sheet.update(f"D{i}", [["booked"]])
+            sheet.update(f"E{i}", [[fullname]])
+            sheet.update(f"F{i}", [[username]])
 
             await query.edit_message_text(
                 f"Ви записані:\n\n"
