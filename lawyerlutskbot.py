@@ -5,7 +5,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import os
 import json
 
-TOKEN = "PASTE_NEW_TOKEN_HERE"
+TOKEN = "8673313827:AAHJj9Bv-FGg0_GaIrPSev6ts9X146QAw4E"
 
 
 # ---------- GOOGLE SHEETS AUTH ----------
