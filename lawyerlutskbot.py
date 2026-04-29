@@ -150,6 +150,12 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     selected_date = context.user_data["date"]
     consultation_type = context.user_data["type"]
 
+    if not selected_date or not consultation_type:
+        await query.edit_message_text(
+            "Сесія застаріла. Натисніть /start ще раз."
+        )
+        return
+
     username = query.from_user.username or "немає username"
     fullname = query.from_user.full_name
 
