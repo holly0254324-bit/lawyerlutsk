@@ -12,7 +12,6 @@ scope = [
 
 import os
 import json
-from oauth2client.service_account import ServiceAccountCredentials
 
 creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
@@ -87,7 +86,7 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
     records = sheet.get_all_records()
 
     times = [
-        row["time"][:5]
+        str(row["time"])[:5]
         for row in records
         if row["status"] == "free"
         and row["date"] == selected_date
@@ -118,7 +117,7 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, row in enumerate(records, start=2):
         if (
             row["date"] == selected_date
-            and row["time"] == selected_time
+            and row["time"][:5] == selected_time
             and row["type"] == consultation_type
             and row["status"] == "free"
         ):
