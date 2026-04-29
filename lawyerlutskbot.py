@@ -62,8 +62,9 @@ async def show_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     dates = sorted(set(
         row["date"]
         for row in records
-        if row["status"] == "free" and row["type"] == consultation_type
-    ))
+        if row["status"] == "free"
+        and row["type"].strip().lower() == consultation_type
+))
 
     keyboard = [[InlineKeyboardButton(date, callback_data=f"date_{date}")]
                 for date in dates]
