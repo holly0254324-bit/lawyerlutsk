@@ -2,36 +2,57 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import os
+import json
 
-TOKEN = "8673313827:AAGlHqmTlzGSxwOjEhkqflTzVor5S4DZCsU"
+TOKEN = "PASTE_NEW_TOKEN_HERE"
+
+
+# ---------- GOOGLE SHEETS AUTH ----------
 
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
 
-import os
-import json
-
 creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 
 client = gspread.authorize(creds)
-
 sheet = client.open("lawyer_schedule").sheet1
 
+
+# ---------- HELPERS ----------
+
+def normalize(value):
+    """Нормалізує текст із таблиці"""
+    return str(value).strip().lower()
+
+
+def normalize_time(value):
+    """Обрізає секунди якщо вони є"""
+    return str(value)[:5]
+
+
+def normalize_date(value):
+    """Уніфікує формат дати"""
+    return str(value).strip()
+
+
+# ---------- START ----------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📅 Записатися", callback_data="book")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
         "Вітаємо! Оберіть дію:",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+
+# ---------- TYPE SELECT ----------
 
 async def book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -50,30 +71,40 @@ async def book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ---------- DATE SELECT ----------
+
 async def show_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    consultation_type = query.data
+    consultation_type = normalize(query.data)
     context.user_data["type"] = consultation_type
 
     records = sheet.get_all_records()
 
     dates = sorted(set(
-        row["date"]
+        normalize_date(row["date"])
         for row in records
-        if row["status"] == "free"
-        and row["type"].strip().lower() == consultation_type
-))
+        if normalize(row["status"]) == "free"
+        and normalize(row["type"]) == consultation_type
+    ))
 
-    keyboard = [[InlineKeyboardButton(date, callback_data=f"date_{date}")]
-                for date in dates]
+    if not dates:
+        await query.edit_message_text("Немає доступних дат 😔")
+        return
+
+    keyboard = [
+        [InlineKeyboardButton(date, callback_data=f"date_{date}")]
+        for date in dates
+    ]
 
     await query.edit_message_text(
         "Оберіть дату:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+
+# ---------- TIME SELECT ----------
 
 async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -86,27 +117,30 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     records = sheet.get_all_records()
 
-    print("SELECTED:", selected_date, consultation_type)
-
-    for row in records:
-        print("ROW:", row)
-
     times = [
-        str(row["time"])[:5]
+        normalize_time(row["time"])
         for row in records
-        if row["status"] == "free"
-        and str(row["date"]) == selected_date
-        and row["type"].strip().lower() == consultation_type       
+        if normalize(row["status"]) == "free"
+        and normalize_date(row["date"]) == selected_date
+        and normalize(row["type"]) == consultation_type
     ]
 
-    keyboard = [[InlineKeyboardButton(time, callback_data=f"time_{time}")]
-                for time in times]
+    if not times:
+        await query.edit_message_text("На цю дату немає вільного часу 😔")
+        return
+
+    keyboard = [
+        [InlineKeyboardButton(time, callback_data=f"time_{time}")]
+        for time in times
+    ]
 
     await query.edit_message_text(
         "Оберіть час:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+
+# ---------- CONFIRM BOOKING ----------
 
 async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -117,29 +151,38 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     consultation_type = context.user_data["type"]
 
     username = query.from_user.username or "немає username"
+    fullname = query.from_user.full_name
 
     records = sheet.get_all_records()
 
-    print("SELECTED:", selected_date, consultation_type)
-
-    for row in records:
-        print("ROW:", row)
-
     for i, row in enumerate(records, start=2):
         if (
-            row["date"] == selected_date
-            and row["time"][:5] == selected_time
-            and row["type"] == consultation_type
-            and row["status"] == "free"
+            normalize_date(row["date"]) == selected_date
+            and normalize_time(row["time"]) == selected_time
+            and normalize(row["type"]) == consultation_type
         ):
+
+            # Перевірка чи слот ще вільний
+            if normalize(row["status"]) != "free":
+                await query.edit_message_text("Цей слот вже зайнятий 😔")
+                return
+
             sheet.update(f"D{i}", "booked")
+            sheet.update(f"E{i}", fullname)
             sheet.update(f"F{i}", username)
-            break
 
-    await query.edit_message_text(
-        f"Ви записані:\n\n📅 {selected_date}\n🕐 {selected_time}\n📍 {consultation_type}"
-    )
+            await query.edit_message_text(
+                f"Ви записані:\n\n"
+                f"📅 {selected_date}\n"
+                f"🕐 {selected_time}\n"
+                f"📍 {consultation_type}"
+            )
+            return
 
+    await query.edit_message_text("Помилка запису. Спробуйте ще раз.")
+
+
+# ---------- RUN BOT ----------
 
 app = ApplicationBuilder().token(TOKEN).build()
 
