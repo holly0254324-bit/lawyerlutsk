@@ -87,7 +87,7 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
     records = sheet.get_all_records()
 
     times = [
-        row["time"]
+        row["time"][:5]
         for row in records
         if row["status"] == "free"
         and row["date"] == selected_date
