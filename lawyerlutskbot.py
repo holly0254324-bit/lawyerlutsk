@@ -85,11 +85,16 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     records = sheet.get_all_records()
 
+    print("SELECTED:", selected_date, consultation_type)
+
+    for row in records:
+        print("ROW:", row)
+
     times = [
         str(row["time"])[:5]
         for row in records
         if row["status"] == "free"
-        and row["date"] == selected_date
+        and str(row["date"]) == selected_date
         and row["type"] == consultation_type
     ]
 
