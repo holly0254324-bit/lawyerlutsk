@@ -5,8 +5,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import os
 import json
 
-import os
-
 TOKEN = os.getenv("BOT_TOKEN")
 
 
@@ -27,18 +25,24 @@ sheet = client.open("lawyer_schedule").sheet1
 # ---------- HELPERS ----------
 
 def normalize(value):
-    """Нормалізує текст із таблиці"""
     return str(value).strip().lower()
 
 
 def normalize_time(value):
-    """Обрізає секунди якщо вони є"""
     return str(value)[:5]
 
 
 def normalize_date(value):
-    """Уніфікує формат дати"""
     return str(value).strip()
+
+
+def is_free(status):
+    """Перевіряє чи слот вільний"""
+    return (
+        status is None
+        or str(status).strip() == ""
+        or normalize(status) == "free"
+    )
 
 
 # ---------- START ----------
@@ -49,7 +53,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await update.message.reply_text(
-        "Вітаємо! Оберіть дію:",
+        "Вас вітає приватний консультант Холлі! Тут ви можете записатись до мене на прийом:
+        Welcome to Holly, a private consultant! You can make an appointment with me here:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -87,12 +92,12 @@ async def show_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     dates = sorted(set(
         normalize_date(row["date"])
         for row in records
-        if normalize(row["status"]) == "free"
+        if is_free(row["status"])
         and normalize(row["type"]) == consultation_type
     ))
 
     if not dates:
-        await query.edit_message_text("Немає доступних дат 😔")
+        await query.edit_message_text("Немає доступних дат 😔/ No dates available 😔")
         return
 
     keyboard = [
@@ -101,7 +106,7 @@ async def show_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await query.edit_message_text(
-        "Оберіть дату:",
+        "Оберіть дату: / Choose a date:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -122,13 +127,15 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
     times = [
         normalize_time(row["time"])
         for row in records
-        if normalize(row["status"]) == "free"
+        if is_free(row["status"])
         and normalize_date(row["date"]) == selected_date
         and normalize(row["type"]) == consultation_type
     ]
 
+    times = sorted(set(times))  # защита от дублей
+
     if not times:
-        await query.edit_message_text("На цю дату немає вільного часу 😔")
+        await query.edit_message_text("На цю дату немає вільного часу 😔 / No free time on this date 😔")
         return
 
     keyboard = [
@@ -137,7 +144,7 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await query.edit_message_text(
-        "Оберіть час:",
+        f"Оберіть час для / Choose a time for {selected_date}:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -149,12 +156,12 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     selected_time = query.data.replace("time_", "")
-    selected_date = context.user_data["date"]
-    consultation_type = context.user_data["type"]
+    selected_date = context.user_data.get("date")
+    consultation_type = context.user_data.get("type")
 
     if not selected_date or not consultation_type:
         await query.edit_message_text(
-            "Сесія застаріла. Натисніть /start ще раз."
+            "Сесія застаріла. Натисніть /start ще раз. /The session is out of date. Press /start again."
         )
         return
 
@@ -170,9 +177,8 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
             and normalize(row["type"]) == consultation_type
         ):
 
-            # Перевірка чи слот ще вільний
-            if normalize(row["status"]) != "free":
-                await query.edit_message_text("Цей слот вже зайнятий 😔")
+            if not is_free(row["status"]):
+                await query.edit_message_text("Цей слот вже зайнятий 😔 /This slot is already taken 😔")
                 return
 
             sheet.update(f"D{i}", [["booked"]])
@@ -180,14 +186,14 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sheet.update(f"F{i}", [[username]])
 
             await query.edit_message_text(
-                f"Ви записані:\n\n"
+                f"Вітаю! Ви записані до мене на приватну консультацію. Підготуйте свої питання та беріть з собою гарний настрій. З нетерпінням чекаю нашої зустрічі 🤩 / Congratulations! You have been booked in for a private consultation with me. Prepare your questions and bring a good mood. I look forward to our meeting 🤩 \n\n"
                 f"📅 {selected_date}\n"
                 f"🕐 {selected_time}\n"
                 f"📍 {consultation_type}"
             )
             return
 
-    await query.edit_message_text("Помилка запису. Спробуйте ще раз.")
+    await query.edit_message_text("Помилка запису. Спробуйте ще раз. / Write error. Please try again.")
 
 
 # ---------- RUN BOT ----------
