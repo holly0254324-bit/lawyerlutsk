@@ -174,7 +174,7 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for i, row in enumerate(records, start=2):
         if (
-            normalize_date(row["date"]) == selected_date
+            normalize_date(row.get("date")) == selected_date
             and normalize_time(row["time"]) == selected_time
             and normalize(row["type"]) == consultation_type
         ):
