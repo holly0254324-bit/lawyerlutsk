@@ -203,11 +203,12 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sheet.update(f"G{i}", [[data["phone"]]])
             sheet.update(f"H{i}", [[data["question"]]])
 
-            await update.message.reply_text(
-                f"Готово! Ви записані ✅ / Done! You are registered ✅\n",
-                f"📅 {selected_date}\n" 
-                f"🕐 {selected_time}\n" 
-                f"📍 {consultation_type}"
+           await query.edit_message_text(
+               f"Вітаю! Ви записані до мене на приватну консультацію. Підготуйте свої питання та беріть з собою гарний настрій. З нетерпінням чекаю нашої зустрічі 🤩 \n\n" 
+               f"Congratulations! You have been booked in for a private consultation with me. Prepare your questions and bring a good mood. I look forward to our meeting 🤩 \n\n" 
+               f"📅 {selected_date}\n" 
+               f"🕐 {selected_time}\n" 
+               f"📍 {consultation_type}" 
             )
             
             return
