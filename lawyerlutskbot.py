@@ -5,7 +5,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 import os
 import json
 
-TOKEN = "8673313827:AAHJj9Bv-FGg0_GaIrPSev6ts9X146QAw4E"
+import os
+
+TOKEN = os.getenv("BOT_TOKEN")
 
 
 # ---------- GOOGLE SHEETS AUTH ----------
