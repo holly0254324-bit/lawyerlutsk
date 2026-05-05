@@ -1,11 +1,12 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
 import json
 
 TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = 123456789  # ← вставь свой ID
 
 
 # ---------- GOOGLE SHEETS AUTH ----------
@@ -37,7 +38,6 @@ def normalize_date(value):
 
 
 def is_free(status):
-    """Перевіряє чи слот вільний"""
     return (
         status is None
         or str(status).strip() == ""
@@ -48,9 +48,7 @@ def is_free(status):
 # ---------- START ----------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("📅 Записатися", callback_data="book")]
-    ]
+    keyboard = [[InlineKeyboardButton("📅 Записатися", callback_data="book")]]
 
     await update.message.reply_text(
         "✨ Вас вітає приватний консультант Холлі!\n"
@@ -61,18 +59,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# ---------- TYPE SELECT ----------
+# ---------- TYPE ----------
 
 async def book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    keyboard = [
-        [
-            InlineKeyboardButton("💻 Онлайн", callback_data="online"),
-            InlineKeyboardButton("🏢 Офлайн", callback_data="offline")
-        ]
-    ]
+    keyboard = [[
+        InlineKeyboardButton("💻 Онлайн", callback_data="online"),
+        InlineKeyboardButton("🏢 Офлайн", callback_data="offline")
+    ]]
 
     await query.edit_message_text(
         "Оберіть формат консультації:",
@@ -80,7 +76,7 @@ async def book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# ---------- DATE SELECT ----------
+# ---------- DATE ----------
 
 async def show_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -99,21 +95,23 @@ async def show_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ))
 
     if not dates:
-        await query.edit_message_text("Немає доступних дат 😔/ No dates available 😔")
+        keyboard = [[InlineKeyboardButton("💬 Залишити повідомлення", callback_data="leave_msg")]]
+
+        await query.edit_message_text(
+            "Немає доступних дат 😔",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return
 
-    keyboard = [
-        [InlineKeyboardButton(date, callback_data=f"date_{date}")]
-        for date in dates
-    ]
+    keyboard = [[InlineKeyboardButton(date, callback_data=f"date_{date}")] for date in dates]
 
     await query.edit_message_text(
-        "Оберіть дату: / Choose a date:",
+        "Оберіть дату:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-# ---------- TIME SELECT ----------
+# ---------- TIME ----------
 
 async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -134,72 +132,113 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
         and normalize(row["type"]) == consultation_type
     ]
 
-    times = sorted(set(times))  # защита от дублей
+    times = sorted(set(times))
 
     if not times:
-        await query.edit_message_text("На цю дату немає вільного часу 😔 / No free time on this date 😔")
+        await query.edit_message_text("Немає вільного часу 😔")
         return
 
-    keyboard = [
-        [InlineKeyboardButton(time, callback_data=f"time_{time}")]
-        for time in times
-    ]
+    keyboard = [[InlineKeyboardButton(time, callback_data=f"time_{time}")] for time in times]
 
     await query.edit_message_text(
-        f"Оберіть час для / Choose a time for {selected_date}:",
+        f"Оберіть час для {selected_date}:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-# ---------- CONFIRM BOOKING ----------
+# ---------- ASK PHONE ----------
 
-async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    selected_time = query.data.replace("time_", "")
-    selected_date = context.user_data.get("date")
-    consultation_type = context.user_data.get("type")
+    context.user_data["time"] = query.data.replace("time_", "")
 
-    if not selected_date or not consultation_type:
-        await query.edit_message_text(
-            "Сесія застаріла. Натисніть /start ще раз. /The session is out of date. Press /start again."
-        )
-        return
+    keyboard = [[KeyboardButton("📱 Поділитися номером", request_contact=True)]]
 
-    username = query.from_user.username or "немає username"
-    fullname = query.from_user.full_name
+    await query.message.reply_text(
+        "Будь ласка, поділіться номером телефону:",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    )
+
+
+# ---------- SAVE PHONE ----------
+
+async def save_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["phone"] = update.message.contact.phone_number
+
+    await update.message.reply_text("Коротко опишіть ваше питання:")
+
+
+# ---------- SAVE QUESTION ----------
+
+async def save_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["question"] = update.message.text
+
+    await finalize(update, context)
+
+
+# ---------- FINAL ----------
+
+async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    data = context.user_data
 
     records = sheet.get_all_records()
 
     for i, row in enumerate(records, start=2):
         if (
-            normalize_date(row.get("date")) == selected_date
-            and normalize_time(row["time"]) == selected_time
-            and normalize(row["type"]) == consultation_type
+            normalize_date(row["date"]) == data["date"]
+            and normalize_time(row["time"]) == data["time"]
+            and normalize(row["type"]) == data["type"]
         ):
 
             if not is_free(row["status"]):
-                await query.edit_message_text("Цей слот вже зайнятий 😔 /This slot is already taken 😔")
+                await update.message.reply_text("Слот зайнятий 😔")
                 return
 
             sheet.update(f"D{i}", [["booked"]])
-            sheet.update(f"E{i}", [[fullname]])
-            sheet.update(f"F{i}", [[username]])
+            sheet.update(f"E{i}", [[update.message.from_user.full_name]])
+            sheet.update(f"F{i}", [[update.message.from_user.username or ""]])
+            sheet.update(f"G{i}", [[data["phone"]]])
+            sheet.update(f"H{i}", [[data["question"]]])
 
-            await query.edit_message_text(
-                f"Вітаю! Ви записані до мене на приватну консультацію. Підготуйте свої питання та беріть з собою гарний настрій. З нетерпінням чекаю нашої зустрічі 🤩 \n\n"
-                f"Congratulations! You have been booked in for a private consultation with me. Prepare your questions and bring a good mood. I look forward to our meeting 🤩 \n\n"
-                f"📅 {selected_date}\n"
-                f"🕐 {selected_time}\n"
-                f"📍 {consultation_type}"
-            )
+            await update.message.reply_text("Готово! Ви записані ✅")
             return
 
-    await query.edit_message_text("Помилка запису. Спробуйте ще раз. / Write error. Please try again.")
+
+# ---------- LEAVE MESSAGE ----------
+
+async def leave_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["leave_mode"] = True
+
+    await query.message.reply_text("Напишіть ваше повідомлення:")
 
 
-# ---------- RUN BOT ----------
+async def save_free_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.user_data.get("leave_mode"):
+        return
+
+    user = update.message.from_user
+
+    sheet.append_row([
+        "-", "-", "message", "new",
+        user.full_name,
+        user.username or "",
+        "",
+        update.message.text
+    ])
+
+    await update.message.reply_text("Дякую! Ми зв'яжемось з вами 💌")
+
+    context.user_data["leave_mode"] = False
+
+
+# ---------- RUN ----------
 
 app = ApplicationBuilder().token(TOKEN).build()
 
@@ -207,6 +246,11 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(book, pattern="book"))
 app.add_handler(CallbackQueryHandler(show_dates, pattern="online|offline"))
 app.add_handler(CallbackQueryHandler(show_times, pattern="date_"))
-app.add_handler(CallbackQueryHandler(confirm, pattern="time_"))
+app.add_handler(CallbackQueryHandler(ask_phone, pattern="time_"))
+
+app.add_handler(MessageHandler(filters.CONTACT, save_phone))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, save_question))
+app.add_handler(CallbackQueryHandler(leave_message, pattern="leave_msg"))
+app.add_handler(MessageHandler(filters.TEXT, save_free_message))
 
 app.run_polling()
