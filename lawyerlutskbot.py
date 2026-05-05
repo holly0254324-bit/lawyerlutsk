@@ -167,7 +167,7 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def save_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["phone"] = update.message.contact.phone_number
 
-    await update.message.reply_text("Коротко опишіть ваше питання:")
+    await update.message.reply_text("Коротко опишіть ваше питання: / Briefly describe your question:")
 
 
 # ---------- SAVE QUESTION ----------
@@ -203,7 +203,14 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sheet.update(f"G{i}", [[data["phone"]]])
             sheet.update(f"H{i}", [[data["question"]]])
 
-            await update.message.reply_text("Готово! Ви записані ✅")
+            await update.message.reply_text(
+                f"<b>Готово! Ви записані ✅ / Done! You are registered ✅</b> \n"
+                parse_mode="HTML"
+                f"📅 {selected_date}\n" 
+                f"🕐 {selected_time}\n" 
+                f"📍 {consultation_type}"
+            )
+            
             return
 
 
