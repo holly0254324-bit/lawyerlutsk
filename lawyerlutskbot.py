@@ -48,7 +48,7 @@ def is_free(status):
 # ---------- START ----------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("📅 Записатися", callback_data="book")]]
+    keyboard = [[InlineKeyboardButton("📅 Записатися / Book", callback_data="book")]]
 
     await update.message.reply_text(
         "✨ Вас вітає приватний консультант Холлі!\n"
@@ -66,12 +66,12 @@ async def book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     keyboard = [[
-        InlineKeyboardButton("💻 Онлайн", callback_data="online"),
-        InlineKeyboardButton("🏢 Офлайн", callback_data="offline")
+        InlineKeyboardButton("💻 Online", callback_data="online"),
+        InlineKeyboardButton("🏢 Offline", callback_data="offline")
     ]]
 
     await query.edit_message_text(
-        "Оберіть формат консультації:",
+        "Оберіть формат консультації: / Choose a consultation format:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -95,10 +95,10 @@ async def show_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ))
 
     if not dates:
-        keyboard = [[InlineKeyboardButton("💬 Залишити повідомлення", callback_data="leave_msg")]]
+        keyboard = [[InlineKeyboardButton("💬 Залишити повідомлення / 💬 Leave a message", callback_data="leave_msg")]]
 
         await query.edit_message_text(
-            "Немає доступних дат 😔",
+            "Немає доступних дат 😔 / No dates available 😔",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
@@ -106,7 +106,7 @@ async def show_dates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(date, callback_data=f"date_{date}")] for date in dates]
 
     await query.edit_message_text(
-        "Оберіть дату:",
+        "Оберіть дату: / Choose a date:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -135,13 +135,13 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
     times = sorted(set(times))
 
     if not times:
-        await query.edit_message_text("Немає вільного часу 😔")
+        await query.edit_message_text("Немає вільного часу 😔 /No time available for appointment 😔")
         return
 
     keyboard = [[InlineKeyboardButton(time, callback_data=f"time_{time}")] for time in times]
 
     await query.edit_message_text(
-        f"Оберіть час для {selected_date}:",
+        f"Оберіть час для {selected_date}: /Choose a time for {selected_date}: ",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -154,10 +154,10 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["time"] = query.data.replace("time_", "")
 
-    keyboard = [[KeyboardButton("📱 Поділитися номером", request_contact=True)]]
+    keyboard = [[KeyboardButton("📱 Поділитися номером / 📱 Share your number", request_contact=True)]]
 
     await query.message.reply_text(
-        "Будь ласка, поділіться номером телефону:",
+        "Будь ласка, поділіться номером телефону: /Please share your phone number:",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     )
 
