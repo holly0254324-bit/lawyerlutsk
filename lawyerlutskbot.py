@@ -205,7 +205,6 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await update.message.reply_text(
                 f"<b>Готово! Ви записані ✅ / Done! You are registered ✅</b> \n",
-                parse_mode="HTML"
                 f"📅 {selected_date}\n" 
                 f"🕐 {selected_time}\n" 
                 f"📍 {consultation_type}"
