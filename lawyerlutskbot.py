@@ -6,7 +6,7 @@ import os
 import json
 
 TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = 123456789  # ← вставь свой ID
+ADMIN_ID = 123456789
 
 
 # ---------- GOOGLE SHEETS AUTH ----------
@@ -135,13 +135,13 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE):
     times = sorted(set(times))
 
     if not times:
-        await query.edit_message_text("Немає вільного часу 😔 /No time available for appointment 😔")
+        await query.edit_message_text("Немає вільного часу 😔 / No time available 😔")
         return
 
     keyboard = [[InlineKeyboardButton(time, callback_data=f"time_{time}")] for time in times]
 
     await query.edit_message_text(
-        f"Оберіть час для {selected_date}: /Choose a time for {selected_date}: ",
+        f"Оберіть час для {selected_date}: / Choose a time for {selected_date}:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -157,7 +157,7 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[KeyboardButton("📱 Поділитися номером / 📱 Share your number", request_contact=True)]]
 
     await query.message.reply_text(
-        "Будь ласка, поділіться номером телефону: /Please share your phone number:",
+        "Будь ласка, поділіться номером телефону: / Please share your phone number:",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     )
 
@@ -167,14 +167,15 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def save_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["phone"] = update.message.contact.phone_number
 
-    await update.message.reply_text("Коротко опишіть ваше питання: / Briefly describe your question:")
+    await update.message.reply_text(
+        "Коротко опишіть ваше питання: / Briefly describe your question:"
+    )
 
 
 # ---------- SAVE QUESTION ----------
 
 async def save_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["question"] = update.message.text
-
     await finalize(update, context)
 
 
@@ -184,17 +185,21 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     data = context.user_data
 
+    selected_date = data.get("date")
+    selected_time = data.get("time")
+    consultation_type = data.get("type")
+
     records = sheet.get_all_records()
 
     for i, row in enumerate(records, start=2):
         if (
-            normalize_date(row["date"]) == data["date"]
-            and normalize_time(row["time"]) == data["time"]
-            and normalize(row["type"]) == data["type"]
+            normalize_date(row["date"]) == selected_date
+            and normalize_time(row["time"]) == selected_time
+            and normalize(row["type"]) == consultation_type
         ):
 
             if not is_free(row["status"]):
-                await update.message.reply_text("Слот зайнятий 😔")
+                await update.message.reply_text("Слот зайнятий 😔 / Slot already taken 😔")
                 return
 
             sheet.update(f"D{i}", [["booked"]])
@@ -203,14 +208,14 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sheet.update(f"G{i}", [[data["phone"]]])
             sheet.update(f"H{i}", [[data["question"]]])
 
-            await query.edit_message_text(
-                f"Вітаю! Ви записані до мене на приватну консультацію. Підготуйте свої питання та беріть з собою гарний настрій. З нетерпінням чекаю нашої зустрічі 🤩 \n\n" 
-                f"Congratulations! You have been booked in for a private consultation with me. Prepare your questions and bring a good mood. I look forward to our meeting 🤩 \n\n" 
-                f"📅 {selected_date}\n" 
-                f"🕐 {selected_time}\n" 
-                f"📍 {consultation_type}" 
+            await update.message.reply_text(
+                f"Вітаю! Ви записані до мене на приватну консультацію 🤩\n\n"
+                f"Congratulations! You are successfully booked 🤩\n\n"
+                f"📅 {selected_date}\n"
+                f"🕐 {selected_time}\n"
+                f"📍 {consultation_type}"
             )
-            
+
             return
 
 
@@ -222,7 +227,9 @@ async def leave_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["leave_mode"] = True
 
-    await query.message.reply_text("Напишіть ваше повідомлення:")
+    await query.message.reply_text(
+        "Напишіть ваше повідомлення: / Write your message:"
+    )
 
 
 async def save_free_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -240,7 +247,9 @@ async def save_free_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update.message.text
     ])
 
-    await update.message.reply_text("Дякую! Ми зв'яжемось з вами 💌")
+    await update.message.reply_text(
+        "Дякую! Ми зв'яжемось з вами 💌 / Thank you! We will contact you 💌"
+    )
 
     context.user_data["leave_mode"] = False
 
