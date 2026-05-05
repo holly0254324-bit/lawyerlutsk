@@ -188,7 +188,8 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sheet.update(f"F{i}", [[username]])
 
             await query.edit_message_text(
-                f"Вітаю! Ви записані до мене на приватну консультацію. Підготуйте свої питання та беріть з собою гарний настрій. З нетерпінням чекаю нашої зустрічі 🤩 / Congratulations! You have been booked in for a private consultation with me. Prepare your questions and bring a good mood. I look forward to our meeting 🤩 \n\n"
+                f"Вітаю! Ви записані до мене на приватну консультацію. Підготуйте свої питання та беріть з собою гарний настрій. З нетерпінням чекаю нашої зустрічі 🤩 \n\n"
+                f"Congratulations! You have been booked in for a private consultation with me. Prepare your questions and bring a good mood. I look forward to our meeting 🤩 \n\n"
                 f"📅 {selected_date}\n"
                 f"🕐 {selected_time}\n"
                 f"📍 {consultation_type}"
