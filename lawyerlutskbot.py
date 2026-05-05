@@ -54,7 +54,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         "✨ Вас вітає приватний консультант Холлі!\n"
-        "Тут ви можете записатись до мене на прийом:\n"
+        "Тут ви можете записатись до мене на прийом:\n\n"
         "✨ Welcome to Holly, a private consultant!\n"
         "You can make an appointment with me here:",
         reply_markup=InlineKeyboardMarkup(keyboard)
